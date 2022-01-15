@@ -1,0 +1,105 @@
+---
+title: "Assignment7"
+author: "Sonali Joshi"
+date: "4/28/2017"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r Setup}
+library(GenomicRanges)
+library(SummarizedExperiment)
+library(GenomicFeatures)
+library(DESeq2)
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+library(AnnotationHub)
+library(rtracklayer)
+library(GeneOverlap)
+library("GenomicFeatures")
+library("GenomeInfoDb")
+library("TxDb.Hsapiens.UCSC.hg19.knownGene")
+
+ah =  AnnotationHub()
+
+ah <- subset(ah, species == "Homo sapiens")
+
+
+ah_fetal <- query(ah, c("H3K4me3", "Brain", "narrowPeak", "Fetal"))
+ah_fetal <- ah[["AH30479"]]
+
+ah_adult <- query(ah, c("Homo sapiens","H3K4me3", "Brain", "narrowPeak"))
+ah_adult <- ah[["AH30413"]]
+
+ah_liver <- query(ah, c("Homo sapiens","H3K4me3", "Liver", "narrowPeak"))
+ah_liver <- ah[["AH30367"]]
+
+```
+
+```{r blk }
+#Get the annotation for the up and down regulated genes
+#Convert Gene symbols to tx_id for list1 and list2
+
+up_gene_list <- (as.matrix(up_genes$gene))
+list1 <- up_gene_list[,1]
+down_gene_list <- (as.matrix(down_genes$gene))
+list2 <- down_gene_list[,1]
+head(list2)
+#txdb_knownGene1 <- makeTxDbFromUCSC(genome="hg19", tablename="knownGene", transcript_ids=list1)
+#txdb_knownGene2 <- makeTxDbFromUCSC(genome="hg19", tablename="knownGene", transcript_ids=list2)
+
+
+#txdb_refGene1 <- makeTxDbFromUCSC(genome="hg19", tablename="refGene", transcript_ids=list1)
+#txdb_refGene2 <- makeTxDbFromUCSC(genome="hg19", tablename="refGene", transcript_ids=list2)
+
+#txdb_geneid <- makeTxDbFromUCSC(genome="hg19", tablename="geneid", transcript_ids=list1))
+```
+ 
+ 
+## 
+```{r Compare}
+#findOverlaps(ah_fetal, transcripts(txdb_refGene1))
+#findOverlaps(ah_fetal, transcripts(txdb_refGene2))
+# 22240, 17139 : 54%, 41%
+
+#findOverlaps(ah_adult, transcripts(txdb_refGene1))
+#findOverlaps(ah_adult, transcripts(txdb_refGene2))
+# 31052, 40338 : 40%, 53%
+
+##findOverlaps(ah_liver, transcripts(txdb_refGene1))
+#findOverlaps(ah_liver, transcripts(txdb_refGene2))
+# 36362, 32790 : 39%, 35%
+```
+
+```{r overlaps}
+transcriptsByGene = transcriptsBy(TxDb.Hsapiens.UCSC.hg19.knownGene, by="gene")
+ul_transcriptsByGene <- unlist(transcriptsByGene)
+overlaps_adult <- findOverlaps(ah_adult, ul_transcriptsByGene)
+overlaps_fetal <- findOverlaps(ah_fetal, ul_transcriptsByGene)
+overlaps_liver <- findOverlaps(ah_liver, ul_transcriptsByGene)
+gene_names_adult <- ul_transcriptsByGene[subjectHits(overlaps_adult)]
+gene_names_fetal <- ul_transcriptsByGene[subjectHits(overlaps_fetal)]
+gene_names_liver <- ul_transcriptsByGene[subjectHits(overlaps_liver)]
+
+#go.obj <- newGeneOverlap(gene_names_adult, transcripts(txdb_knownGene1), 189367)
+#go.obj <- testGeneOverlap(go.obj)
+upgenes_list <- (mapIds(human, keys=list1, column = "UCSCKG", keytype = "SYMBOL"))
+downgenes_list <- (mapIds(human, keys=list2, column = "UCSCKG", keytype = "SYMBOL"))
+
+list_ah = list(adult=gene_names_adult$tx_name , 
+               fetal=gene_names_fetal$tx_name, 
+               liver=gene_names_liver$tx_name)
+#list_gene_expr = list(up_genes=transcripts(txdb_knownGene1)$tx_name, 
+#                      down_genes= transcripts(txdb_knownGene2)$tx_name)  
+
+list_gene_expr = list(up_genes = upgenes_list,
+                      down_genes = downgenes_list)
+#gom_obj <- newGOM(list_ah, list_gene_expr, 1000000)
+gom_obj <- newGOM(list_ah, list_gene_expr, 1000000)
+#gom_obj <- newGOM(list_ah, list_gene_expr,genome.size=gs.RNASeq)
+getMatrix(gom_obj, "odds.ratio")
+getMatrix(gom_obj, "intersection")
+```
