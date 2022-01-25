@@ -1,0 +1,68 @@
+---
+title: "Sonali Joshi - Assignment 5"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(GenomicRanges)
+library(SummarizedExperiment)
+library(GenomicFeatures)
+library(DESeq2)
+library(ggplot2)
+library(dplyr)
+```
+
+## Exploratory Analysis
+The Counts data and Phenotype data were loaded into R for analysis with Bioconductor.
+Rows with very low counts were filtered out to reduce the size of the counts data.
+```{r GetData}
+CountsData<-read.delim('FeatureCountsData.txt', header = TRUE)
+CountsData = CountsData[rowMeans(CountsData[,2:7])>5,]
+head(CountsData,5)
+PhenoData<-read.delim('Sample_phenotypes.txt',header=TRUE)
+sample_data <- DataFrame(PhenoData)
+head(PhenoData)
+
+```
+
+##Create DESeqDataSet object
+
+The package DESeq2 was used for further analysis. A column called ExpDesign was added to the Phenotype table to label the fetal and adult samples. This is used by DESeq2 package to specify the experimental design for analysis. 
+Construct the DESeqDataSet object from the Counts data and the phenotype data
+
+```{r }
+#data_dds <- DESeqDataSetFromMatrix(CountsData[,2:7], PhenoData, ~ExpDesign)
+data_dds <- DESeqDataSetFromMatrix(CountsData[,2:7], PhenoData, ~ExpDesign)
+```
+
+The DESeq2 package recommends the use of raw data without normalizing for sequencing depth as it accounts for library size differences internally.
+
+## Visualize data
+
+The boxplot on raw data indicates that data transformation is needed before PCA.
+```{r boxplot}
+
+boxplot(counts(data_dds))
+
+```
+## Data Transformation
+DESeq2 offers two transformations for count data to stabilize variance. Transform the data using the VST - Variance Stabilizing Transformation and plot the data.
+
+```{r Transform}
+vdata_dds <- vst(data_dds, blind = FALSE)
+boxplot(vst(counts(data_dds)), col="blue")
+
+```
+
+
+## PCA
+Explore the data further by doing PCA on the data, to check if the age (fetal, adults) or sex have correlations with the principal components.
+
+```{r plots}
+plotPCA(vdata_dds, c("ExpDesign"))
+plotPCA(vdata_dds, c("Sex"))
+```
+
+It is clear from the PCA that age (Fetal, Adult) explains the difference in the counts data as compared to the sex.
+
